@@ -1,16 +1,19 @@
 //Libraries
 #include <Arduino.h>
-#include "Wire.h"       // For I2C/TWI devices to communicate
+#include "Wire.h"       // For I2C/TWI devices to communicate with the Arduino i.e. the temp and humid. sensor and sunlight sensor
 #include "DHT.h"        // For temperature and humidity sensor
+#include "Si115x.h"     // For sunlight sensor
 
 //Definitions for constant values
 #define DHTTYPE DHT20   // DHT 20 is the current iteration of the temp & hum. sensor
-DHT dht(DHTTYPE);       //   Define pin
+DHT dht(DHTTYPE);       // DHT object for calling temp and humidity library methods
+Si115X si1151;          // Sunlight sensor object for calling library methods
 
 void setup() {
   Serial.begin(9600);    // Serial communication speed
   Wire.begin();
   dht.begin();  
+  Serial.println("\n################################################"); 
 }
 
 void loop() {
@@ -32,7 +35,16 @@ void loop() {
   } else {
     Serial.println("Failed to get temperature and humidity value.");
   }
+  Serial.println();
 
-  Serial.println("\n################################################"); // For readability
-  delay(10000);
+  // Sunlight code
+  Serial.print("IR: ");
+  Serial.print(si1151.ReadHalfWord());
+  Serial.print("\t\tVisible: ");
+  Serial.print(si1151.ReadHalfWord_VISIBLE());
+  Serial.print("\t\tUV: ");
+  Serial.print(si1151.ReadHalfWord_UV());
+
+  Serial.println("\n################################################"); // hashes to separate each loop for readability
+  delay(10000); //  10 second delay between loops
 }
