@@ -6,16 +6,16 @@
 #include "Firebase_Arduino_WiFiNINA.h"  // For Firebase, also includes WiFiNINA library
 
 //Definitions for constant values
-#define DHTTYPE DHT20         // DHT 20 is the current iteration of the temp & hum. sensor
+#define DHTTYPE DHT20                   // DHT 20 is the current iteration of the temp & hum. sensor
 #define FIREBASE_HOST "plant-monitor-64489-default-rtdb.europe-west1.firebasedatabase.app"
 #define FIREBASE_AUTH "1hYltDtWBkDG50sMrH29FfcfmbbCvsFvdojQ5mRb"
 #define WIFI_SSID "VM9F3C427"
 #define WIFI_PASSWORD "fVajm7xacXav"
-DHT dht(DHTTYPE);             // DHT object for calling temp and humidity library methods
-Si115X si1151;                // Sunlight sensor object for calling library methods
-FirebaseData firebaseData;    // Firebase object for calling library methods
-String path = "/Plant_Name";  // Name of "table" containing data
-String jsonStr;               // String for storing JSON data
+DHT dht(DHTTYPE);                       // DHT object for calling temp and humidity library methods
+Si115X si1151;                          // Sunlight sensor object for calling library methods
+FirebaseData firebaseData;              // Firebase object for calling library methods
+String path = "/Plant_Name";            // Name of "table" containing data
+String jsonStr;                         // String for storing JSON data
 
 void wifi_connect() {
     // WiFi setup
