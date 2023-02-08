@@ -4,26 +4,22 @@
 #include "DHT.h"                        // For temperature and humidity sensor
 #include "Si115X.h"                     // For sunlight sensor
 #include "Firebase_Arduino_WiFiNINA.h"  // For Firebase, also includes WiFiNINA library
+#include "secrets.h"
 
 //Definitions for constant values
 #define DHTTYPE DHT20                   // DHT 20 is the current iteration of the temp & hum. sensor
-#define FIREBASE_HOST "plant-monitor-64489-default-rtdb.europe-west1.firebasedatabase.app"
-#define FIREBASE_AUTH "1hYltDtWBkDG50sMrH29FfcfmbbCvsFvdojQ5mRb"
-#define WIFI_SSID "VM9F3C427"
-#define WIFI_PASSWORD "fVajm7xacXav"
 DHT dht(DHTTYPE);                       // DHT object for calling temp and humidity library methods
 Si115X si1151;                          // Sunlight sensor object for calling library methods
 FirebaseData firebaseData;              // Firebase object for calling library methods
-String path = "/Plant_Name";            // Name of "table" containing data
-String jsonStr;                         // String for storing JSON data
+String path = "/Plant_Name";            // Name of "table" containing data. Temporary for testing.
 
 void wifi_connect() {
-    // WiFi setup
+  // WiFi setup
   Serial.println("Connecting to WiFi...");
   int status = WL_IDLE_STATUS;
   while(status != WL_CONNECTED) {
     status = WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    Serial.print(WiFi.status());    // idle = 0, no SSID available = 1, scan completed = 2, connected = 3, connection failed = 4, disconnected = 5
+    Serial.println(WiFi.status());      // idle = 0, no SSID available = 1, scan completed = 2, connected = 3, connection failed = 4, disconnected = 5, attempting to connect = 6
     delay(300);
   }
   Serial.println("Connected to WiFi");
@@ -42,7 +38,6 @@ void setup() {
   Serial.begin(9600);     // Serial communication speed
   Wire.begin();
   dht.begin();
-
   wifi_connect();
   firebase_connect();
 
