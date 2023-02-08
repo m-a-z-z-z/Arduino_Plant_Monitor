@@ -45,7 +45,6 @@ void setup() {
 }
 
 void loop() {
-  Serial.println(WiFi.status());
   // Soil moisture code
   int soilMoistureValue = analogRead(A3);
   Serial.print("Soil moisture: ");
