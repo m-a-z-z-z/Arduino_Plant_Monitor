@@ -23,7 +23,7 @@ void wifi_connect() {
   int status = WL_IDLE_STATUS;
   while(status != WL_CONNECTED) {
     status = WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    Serial.print(".");
+    Serial.print(WiFi.status());    // idle = 0, no SSID available = 1, scan completed = 2, connected = 3, connection failed = 4, disconnected = 5
     delay(300);
   }
   Serial.println("Connected to WiFi");
@@ -50,6 +50,7 @@ void setup() {
 }
 
 void loop() {
+  Serial.println(WiFi.status());
   // Soil moisture code
   int soilMoistureValue = analogRead(A3);
   Serial.print("Soil moisture: ");
@@ -98,21 +99,6 @@ void loop() {
   }
   if (Firebase.setFloat(firebaseData, path + "/Sunlight/UV", si1151.ReadHalfWord_UV())) {
     Serial.println(firebaseData.dataPath() + " = " + si1151.ReadHalfWord_UV());
-  }
-
-  // Push data to Firebase using pushJSON
-  jsonStr = "{\"Soil_Moisture\":" + String(soilMoistureValue) 
-              + ",\"Temp_Humid\":{\"Humidity\":" + String(temp_hum_val[0]) 
-              + ",\"Temperature\":" + String(temp_hum_val[1]) 
-              + "},\"Sunlight\":{\"IR\":" + String(si1151.ReadHalfWord()) 
-              + ",\"Visible\":" + String(si1151.ReadHalfWord_VISIBLE()) 
-              + ",\"UV\":" + String(si1151.ReadHalfWord_UV()) + "}}"
-  ;
-
-  if (Firebase.pushJSON(firebaseData, path + "/2-pushJSON", jsonStr)) {
-    Serial.println(firebaseData.dataPath() + " = " + firebaseData.pushName());
-  } else {
-    Serial.println("Error: " + firebaseData.errorReason());
   }
 
   Serial.println("\n################################################"); // hashes to separate each loop for readability
