@@ -3,4 +3,5 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-.secrets.h
+include/secrets.h
+lib/Grove_Sunlight_Sensor-Si1151
