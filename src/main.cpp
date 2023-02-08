@@ -52,6 +52,15 @@ void loop() {
   Serial.print(soilMoistureValue);
   Serial.println();
 
+  // Sunlight code
+  Serial.print("IR: ");
+  Serial.print(si1151.ReadHalfWord());
+  Serial.print("\t\tVisible: ");
+  Serial.print(si1151.ReadHalfWord_VISIBLE());
+  Serial.print("\t\tUV: ");
+  Serial.print(si1151.ReadHalfWord_UV());
+  Serial.println();
+
   // Temperature and humidity code
   float temp_hum_val[2] = {0};
   if (!dht.readTempAndHumidity(temp_hum_val)) {
@@ -64,15 +73,6 @@ void loop() {
   } else {
     Serial.println("Failed to get temperature and humidity value.");
   }
-  Serial.println();
-
-  // Sunlight code
-  Serial.print("IR: ");
-  Serial.print(si1151.ReadHalfWord());
-  Serial.print("\t\tVisible: ");
-  Serial.print(si1151.ReadHalfWord_VISIBLE());
-  Serial.print("\t\tUV: ");
-  Serial.print(si1151.ReadHalfWord_UV());
   Serial.println();
 
   // Firebase code
