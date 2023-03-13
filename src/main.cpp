@@ -11,7 +11,7 @@
 DHT dht(DHTTYPE);                       // DHT object for calling temp and humidity library methods
 Si115X si1151;                          // Sunlight sensor object for calling library methods
 FirebaseData firebaseData;              // Firebase object for calling library methods
-String path = "/Plant_Name";            // Name of "table" containing data. Temporary for testing.
+String path = "Users/" + userName + "/Plants/" + plantName;            // Name of "table" containing data. Temporary for testing.
 
 void wifi_connect() {
   // WiFi setup
@@ -76,26 +76,25 @@ void loop() {
 
   // Firebase code
   // Send data to Firebase with specific path
-  if (Firebase.setInt(firebaseData, path + "/Soil_Moisture", soilMoistureValue)) {
+  if (Firebase.setInt(firebaseData, path + "/soil_Moisture", soilMoistureValue)) {
     Serial.println(firebaseData.dataPath() + " = " + soilMoistureValue);
   } 
-   if (Firebase.setFloat(firebaseData, path + "/Temp_Humid/Humidity", temp_hum_val[0])) {
+   if (Firebase.setFloat(firebaseData, path + "/humidity", temp_hum_val[0])) {
     Serial.println(firebaseData.dataPath() + " = " + temp_hum_val[0]);
   } 
-  if (Firebase.setFloat(firebaseData, path + "/Temp_Humid/Temperature", temp_hum_val[1])) {
+  if (Firebase.setFloat(firebaseData, path + "/temperature", temp_hum_val[1])) {
     Serial.println(firebaseData.dataPath() + " = " + temp_hum_val[1]);
   }
-  if (Firebase.setInt(firebaseData, path + "/Sunlight/IR", si1151.ReadHalfWord())) {
+  if (Firebase.setInt(firebaseData, path + "/irLight", si1151.ReadHalfWord())) {
     Serial.println(firebaseData.dataPath() + " = " + si1151.ReadHalfWord());
   }
-  if (Firebase.setInt(firebaseData, path + "/Sunlight/Visible", si1151.ReadHalfWord_VISIBLE())) {
+  if (Firebase.setInt(firebaseData, path + "/visLight", si1151.ReadHalfWord_VISIBLE())) {
     Serial.println(firebaseData.dataPath() + " = " + si1151.ReadHalfWord_VISIBLE());
   }
-  if (Firebase.setFloat(firebaseData, path + "/Sunlight/UV", si1151.ReadHalfWord_UV())) {
+  if (Firebase.setFloat(firebaseData, path + "/uvLight", si1151.ReadHalfWord_UV())) {
     Serial.println(firebaseData.dataPath() + " = " + si1151.ReadHalfWord_UV());
   }
 
   Serial.println("\n################################################"); // hashes to separate each loop for readability
   delay(10000); //  10 second delay between loops
 }
-
