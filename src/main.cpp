@@ -12,6 +12,8 @@ DHT dht(DHTTYPE);                       // DHT object for calling temp and humid
 Si115X si1151;                          // Sunlight sensor object for calling library methods
 FirebaseData firebaseData;              // Firebase object for calling library methods
 String path = "Users/" + userName + "/Plants/" + plantName;            // Name of "table" containing data. Temporary for testing.
+// String historyPath = "Users/" + userName + "/Plants/" + plantName + "/History";
+String jsonStr;                         // String for storing JSON data
 
 void wifi_connect() {
   // WiFi setup
@@ -94,6 +96,18 @@ void loop() {
   if (Firebase.setFloat(firebaseData, path + "/uvLight", si1151.ReadHalfWord_UV())) {
     Serial.println(firebaseData.dataPath() + " = " + si1151.ReadHalfWord_UV());
   }
+
+
+  // Push data in json strin using pushJSON to a history path
+  // light sensor is currently broken and pushJSON can't work with null values so it is omitted
+  String jsonStr = "{\"soil_Moisture\":" + String(soilMoistureValue) + ",\"humidity\":" + String(temp_hum_val[0]) + ",\"temperature\":" + String(temp_hum_val[1]) + "}";
+  if (Firebase.pushJSON(firebaseData, path + "/history", jsonStr)) {
+    Serial.println(firebaseData.dataPath() + " = " + firebaseData.pushName());
+  }
+  else {
+    Serial.println("Error: " + firebaseData.errorReason());
+  }
+
 
   Serial.println("\n################################################"); // hashes to separate each loop for readability
   delay(10000); //  10 second delay between loops
