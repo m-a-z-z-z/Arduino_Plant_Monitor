@@ -129,5 +129,5 @@ void loop() {
   }
 
   Serial.println("################################################"); // hashes to separate each loop for readability
-  delay(10000); //  minute delay between loops
+  delay(60000); //  minute delay between loops
 }
