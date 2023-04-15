@@ -11,15 +11,12 @@
 DHT dht(DHTTYPE);                       // DHT object for calling temp and humidity library methods
 Si115X si1151;                          // Sunlight sensor object for calling library methods
 FirebaseData firebaseData;              // Firebase object for calling library methods
-String path = "Users/" + userName + "/Plants/" + plantID;            // Name of "table" containing data. Temporary for testing.
-String jsonStr;                         // String for storing JSON data
 
 // Sensor vartiables
 const int dryValue = 720;               // Value of soil moisture sensor when not in any water or soil
 const int waterValue = 500;             // Value of soil moisture sensor when in water
 int soilMoistureValue, soilMoisturePercentage, irValue, visValue;
 float temp_hum_val[2] = {0}, uvValue, humidityValue, temperatureValue;
-
 
 void wifi_connect() {
   // WiFi setup
@@ -42,6 +39,72 @@ void firebase_connect() {
   Firebase.reconnectWiFi(true);
 }
 
+void getSoilMoisture() {
+  int readings = 0;
+  for (int i=0; i<20; i++) {
+    readings += analogRead(A3);
+    soilMoistureValue = readings / 20;
+  }
+  soilMoisturePercentage = constrain(map(soilMoistureValue, dryValue, waterValue, 0, 100), 0, 100); // Map soil moisture value to percentage (100% moist - 0% moist)
+}
+
+void getSunlight() {
+  // sunlight
+  irValue = si1151.ReadHalfWord(); 
+  visValue = si1151.ReadHalfWord_VISIBLE(); 
+  uvValue = si1151.ReadHalfWord_UV();
+}
+
+void getTempAndHumidity() {
+  if (!dht.readTempAndHumidity(temp_hum_val)) {
+    humidityValue = temp_hum_val[0]; 
+    temperatureValue = temp_hum_val[1];
+  } else {
+    humidityValue = 0;
+    temperatureValue = 0;
+    Serial.println("Failed to get temperature and humidity value.");
+  }
+}
+
+void sendToFirebase() {
+  String path = "Users/" + userName + "/Plants/" + plantID;            // Name of "table" containing data. Temporary for testing.
+
+  // Send data to Firebase under the specified path
+  if (Firebase.setInt(firebaseData, path + "/soilMoisture", soilMoisturePercentage)) {
+    Serial.println(firebaseData.dataPath() + " = " + soilMoisturePercentage);
+  } 
+   if (Firebase.setFloat(firebaseData, path + "/humidity", humidityValue)) {
+    Serial.println(firebaseData.dataPath() + " = " + humidityValue);
+  } 
+  if (Firebase.setFloat(firebaseData, path + "/temperature", temperatureValue)) {
+    Serial.println(firebaseData.dataPath() + " = " + temperatureValue);
+  }
+  if (Firebase.setInt(firebaseData, path + "/irLight", irValue)) {
+    Serial.println(firebaseData.dataPath() + " = " + irValue);
+  }
+  if (Firebase.setInt(firebaseData, path + "/visLight", visValue)) {
+    Serial.println(firebaseData.dataPath() + " = " + visValue);
+  }
+  if (Firebase.setFloat(firebaseData, path + "/uvLight", uvValue)) {
+    Serial.println(firebaseData.dataPath() + " = " + uvValue);
+  }
+
+  // Push data in json string using pushJSON to a history path (child of plant path)
+  String jsonStr = 
+    "{\"soilMoisture\":" + String(soilMoisturePercentage) 
+    + ",\"irLight\":" + String(irValue)
+    + ",\"visLight\":" + String(visValue)
+    + ",\"uvLight\":" + String(visValue)
+    + ",\"humidity\":" + String(humidityValue) 
+    + ",\"temperature\":" + String(temperatureValue) + "}";
+  if (Firebase.pushJSON(firebaseData, path + "/history", jsonStr)) {
+    Serial.println(firebaseData.dataPath() + " = " + firebaseData.pushName());
+  }
+  else {
+    Serial.println("Error: " + firebaseData.errorReason());
+  }
+}
+
 void setup() {
   Serial.begin(9600);     // Serial communication speed
   Wire.begin();
@@ -56,28 +119,13 @@ void setup() {
     Serial.println("Si115X sensor found");
   }
 
-
   Serial.println("\n################################################"); 
 }
 
 void loop() {
-  // Sensor readings
-  //Soil moisture
-  int soilMoistureValue = analogRead(A3);
-  soilMoisturePercentage = constrain(map(soilMoistureValue, dryValue, waterValue, 0, 100), 0, 100); // Map soil moisture value to percentage (100% moist - 0% moist)
-  // sunlight
-  irValue = si1151.ReadHalfWord(); 
-  visValue = si1151.ReadHalfWord_VISIBLE(); 
-  uvValue = si1151.ReadHalfWord_UV();
-  // temp and humidity
-  if (!dht.readTempAndHumidity(temp_hum_val)) {
-    humidityValue = temp_hum_val[0]; 
-    temperatureValue = temp_hum_val[1];
-  } else {
-    humidityValue = 0;
-    temperatureValue = 0;
-    Serial.println("Failed to get temperature and humidity value.");
-  }
+  getSoilMoisture();
+  getSunlight();
+  getTempAndHumidity();
 
   // For debugging
   Serial.print("Soil moisture: ");
@@ -101,41 +149,7 @@ void loop() {
   Serial.print("°C");
   Serial.print("\n\n");
 
-  // Firebase code
-  // Send data to Firebase with specific path
-  if (Firebase.setInt(firebaseData, path + "/soilMoisture", soilMoisturePercentage)) {
-    Serial.println(firebaseData.dataPath() + " = " + soilMoisturePercentage);
-  } 
-   if (Firebase.setFloat(firebaseData, path + "/humidity", humidityValue)) {
-    Serial.println(firebaseData.dataPath() + " = " + humidityValue);
-  } 
-  if (Firebase.setFloat(firebaseData, path + "/temperature", temperatureValue)) {
-    Serial.println(firebaseData.dataPath() + " = " + temperatureValue);
-  }
-  if (Firebase.setInt(firebaseData, path + "/irLight", irValue)) {
-    Serial.println(firebaseData.dataPath() + " = " + irValue);
-  }
-  if (Firebase.setInt(firebaseData, path + "/visLight", visValue)) {
-    Serial.println(firebaseData.dataPath() + " = " + visValue);
-  }
-  if (Firebase.setFloat(firebaseData, path + "/uvLight", uvValue)) {
-    Serial.println(firebaseData.dataPath() + " = " + uvValue);
-  }
-
-  // Push data in json strin using pushJSON to a history path
-  jsonStr = 
-    "{\"soilMoisture\":" + String(soilMoisturePercentage) 
-    + ",\"irLight\":" + String(irValue)
-    + ",\"visLight\":" + String(visValue)
-    + ",\"uvLight\":" + String(visValue)
-    + ",\"humidity\":" + String(humidityValue) 
-    + ",\"temperature\":" + String(temperatureValue) + "}";
-  if (Firebase.pushJSON(firebaseData, path + "/history", jsonStr)) {
-    Serial.println(firebaseData.dataPath() + " = " + firebaseData.pushName());
-  }
-  else {
-    Serial.println("Error: " + firebaseData.errorReason());
-  }
+  sendToFirebase();
 
   Serial.println("################################################"); // hashes to separate each loop for readability
   delay(60000); //  minute delay between loops
