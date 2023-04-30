@@ -4,7 +4,8 @@
 #include "DHT.h"                        // For temperature and humidity sensor
 #include "Si115X.h"                     // For sunlight sensor
 #include "Firebase_Arduino_WiFiNINA.h"  // For Firebase, also includes WiFiNINA library
-#include "secrets.h"
+#include "Ticker.h"                     // For scheduling tasks
+#include "secrets.h"                    // For WiFi and Firebase credentials
 
 //Definitions for constant values
 #define DHTTYPE DHT20                   // DHT 20 is the current iteration of the temp & hum. sensor
@@ -12,11 +13,57 @@ DHT dht(DHTTYPE);                       // DHT object for calling temp and humid
 Si115X si1151;                          // Sunlight sensor object for calling library methods
 FirebaseData firebaseData;              // Firebase object for calling library methods
 
-// Sensor vartiables
+// Sensor variables
 const int dryValue = 720;               // Value of soil moisture sensor when not in any water or soil
 const int waterValue = 500;             // Value of soil moisture sensor when in water
 int soilMoistureValue, soilMoisturePercentage, irValue, visValue;
 float temp_hum_val[2] = {0}, uvValue, humidityValue, temperatureValue;
+
+// declare functions
+void wifi_connect();
+void firebase_connect();
+void getSoilMoisture();
+void getSunlight();
+void getTempAndHumidity();
+void sendToFirebase();
+void createSnapshot();
+
+// Ticker objects for scheduling tasks
+Ticker
+timer_getSoilMoisture(getSoilMoisture, 5000, 0),
+timer_getLight(getSunlight, 5000, 0),
+timer_getTempHum(getTempAndHumidity, 5000, 0),
+timer_sendToFb(sendToFirebase, 5000, 0),
+timer_createSnapshot(createSnapshot, 300000, 0);  // snapshots are created every 5 minutes for history in database
+
+void setup() {
+  Serial.begin(9600);     // Serial communication speed
+  Wire.begin();
+  dht.begin();
+  wifi_connect();
+  firebase_connect();
+
+  if (!si1151.Begin())
+    Serial.println("Si1151 is not ready!");
+  else
+    Serial.println("Si1151 is ready!");
+
+  // start ticker objects
+  timer_getSoilMoisture.start();
+  timer_getLight.start();
+  timer_getTempHum.start();
+  timer_sendToFb.start();
+  timer_createSnapshot.start();
+  Serial.println("\n################################################"); 
+}
+
+void loop() {
+  timer_getSoilMoisture.update();
+  timer_getLight.update();
+  timer_getTempHum.update();
+  timer_sendToFb.update();
+  timer_createSnapshot.update();
+}
 
 void wifi_connect() {
   // WiFi setup
@@ -46,6 +93,12 @@ void getSoilMoisture() {
     soilMoistureValue = readings / 20;
   }
   soilMoisturePercentage = constrain(map(soilMoistureValue, dryValue, waterValue, 0, 100), 0, 100); // Map soil moisture value to percentage (100% moist - 0% moist)
+  Serial.print("Soil moisture: ");
+  Serial.print(soilMoistureValue);
+  Serial.print("\t\tSoil moisture percentage: ");
+  Serial.print(soilMoisturePercentage);
+  Serial.print("%");
+  Serial.println();
 }
 
 void getSunlight() {
@@ -53,6 +106,14 @@ void getSunlight() {
   irValue = si1151.ReadHalfWord(); 
   visValue = si1151.ReadHalfWord_VISIBLE(); 
   uvValue = si1151.ReadHalfWord_UV();
+
+  Serial.print("IR: ");
+  Serial.print(irValue);
+  Serial.print("\t\tVisible: ");
+  Serial.print(visValue);
+  Serial.print("\t\tUV: ");
+  Serial.print(uvValue);
+  Serial.println();
 }
 
 void getTempAndHumidity() {
@@ -64,6 +125,14 @@ void getTempAndHumidity() {
     temperatureValue = 0;
     Serial.println("Failed to get temperature and humidity value.");
   }
+  
+  Serial.print("Humidity: ");
+  Serial.print(humidityValue);
+  Serial.print("%\t");
+  Serial.print("Temperature: ");
+  Serial.print(temperatureValue);
+  Serial.print("°C");
+  Serial.print("\n\n");
 }
 
 void sendToFirebase() {
@@ -73,7 +142,7 @@ void sendToFirebase() {
   if (Firebase.setInt(firebaseData, path + "/soilMoisture", soilMoisturePercentage)) {
     Serial.println(firebaseData.dataPath() + " = " + soilMoisturePercentage);
   } 
-   if (Firebase.setFloat(firebaseData, path + "/humidity", humidityValue)) {
+  if (Firebase.setFloat(firebaseData, path + "/humidity", humidityValue)) {
     Serial.println(firebaseData.dataPath() + " = " + humidityValue);
   } 
   if (Firebase.setFloat(firebaseData, path + "/temperature", temperatureValue)) {
@@ -88,69 +157,26 @@ void sendToFirebase() {
   if (Firebase.setFloat(firebaseData, path + "/uvLight", uvValue)) {
     Serial.println(firebaseData.dataPath() + " = " + uvValue);
   }
+  Serial.println("################################################"); // hashes to separate each loop for readability
+}
+
+void createSnapshot() {
+  String path = "Users/" + userName + "/Plants/" + plantID + "/history";            // Name of "table" containing data. Temporary for testing.
 
   // Push data in json string using pushJSON to a history path (child of plant path)
   String jsonStr = 
     "{\"soilMoisture\":" + String(soilMoisturePercentage) 
     + ",\"irLight\":" + String(irValue)
     + ",\"visLight\":" + String(visValue)
-    + ",\"uvLight\":" + String(visValue)
+    + ",\"uvLight\":" + String(uvValue)
     + ",\"humidity\":" + String(humidityValue) 
     + ",\"temperature\":" + String(temperatureValue) + "}";
-  if (Firebase.pushJSON(firebaseData, path + "/history", jsonStr)) {
+  if (Firebase.pushJSON(firebaseData, path, jsonStr)) {
     Serial.println(firebaseData.dataPath() + " = " + firebaseData.pushName());
   }
   else {
     Serial.println("Error: " + firebaseData.errorReason());
   }
-}
-
-void setup() {
-  Serial.begin(9600);     // Serial communication speed
-  Wire.begin();
-  dht.begin();
-  wifi_connect();
-  firebase_connect();
-
-  if(!si1151.Begin()) {
-    Serial.println("Si115X sensor not found");
-    while(1);
-  } else {
-    Serial.println("Si115X sensor found");
-  }
-
-  Serial.println("\n################################################"); 
-}
-
-void loop() {
-  getSoilMoisture();
-  getSunlight();
-  getTempAndHumidity();
-
-  // For debugging
-  Serial.print("Soil moisture: ");
-  Serial.print(soilMoistureValue);
-  Serial.print("\t\tSoil moisture percentage: ");
-  Serial.print(soilMoisturePercentage);
-  Serial.print("%");
-  Serial.println();
-  Serial.print("IR: ");
-  Serial.print(irValue);
-  Serial.print("\t\tVisible: ");
-  Serial.print(visValue);
-  Serial.print("\t\tUV: ");
-  Serial.print(uvValue);
-  Serial.println();
-  Serial.print("Humidity: ");
-  Serial.print(humidityValue);
-  Serial.print("%\t");
-  Serial.print("Temperature: ");
-  Serial.print(temperatureValue);
-  Serial.print("°C");
-  Serial.print("\n\n");
-
-  sendToFirebase();
-
+  Serial.println("Snapshot added to database.");
   Serial.println("################################################"); // hashes to separate each loop for readability
-  delay(60000); //  minute delay between loops
 }
