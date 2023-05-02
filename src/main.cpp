@@ -7,7 +7,6 @@
 #include "Ticker.h"                     // For scheduling tasks
 #include "secrets.h"                    // For WiFi and Firebase credentials
 
-//Definitions for constant values
 #define DHTTYPE DHT20                   // DHT 20 is the current iteration of the temp & hum. sensor
 DHT dht(DHTTYPE);                       // DHT object for calling temp and humidity library methods
 Si115X si1151;                          // Sunlight sensor object for calling library methods
@@ -19,6 +18,7 @@ const int waterValue = 500;             // Value of soil moisture sensor when in
 int soilMoistureValue, soilMoisturePercentage, irValue, visValue;
 float temp_hum_val[2] = {0}, uvValue, humidityValue, temperatureValue;
 
+
 // declare functions
 void wifi_connect();
 void firebase_connect();
@@ -27,6 +27,7 @@ void getSunlight();
 void getTempAndHumidity();
 void sendToFirebase();
 void createSnapshot();
+void checkPaths();
 
 // Ticker objects for scheduling tasks
 Ticker
@@ -42,12 +43,13 @@ void setup() {
   dht.begin();
   wifi_connect();
   firebase_connect();
+  checkPaths();
 
   if (!si1151.Begin())
     Serial.println("Si1151 is not ready!");
   else
     Serial.println("Si1151 is ready!");
-
+  
   // start ticker objects
   timer_getSoilMoisture.start();
   timer_getLight.start();
@@ -135,8 +137,60 @@ void getTempAndHumidity() {
   Serial.print("\n\n");
 }
 
+void checkPaths() {
+  // This method is purely for if a user enters the plantID wrong and creates a new plant they didn't add through the app accidentally.
+  // If a new plant is added through the Arduino it will be missing the max and min values for various attributes casuing a crash in the app.
+  // This method checks if the max and min values exist and if not adds them to the database to prevent a crash in the app.
+  // The user can then delete the accidental plant from the app.
+  String path = "Users/" + userName + "/Plants/" + plantID;
+
+  Serial.println("Checking paths...");
+
+  if (Firebase.get(firebaseData, path + "/maxLight")) {
+    Serial.println("maxLight not found");
+    Firebase.setInt(firebaseData, path + "/maxLight", 10000);
+  }
+  if (Firebase.get(firebaseData, path + "/minLight")) {
+    Serial.println("minLight not found");
+    Firebase.setInt(firebaseData, path + "/minLight", 0);
+  }
+  if (Firebase.get(firebaseData, path + "/maxTemp")) {
+    Serial.println("maxTemp not found");
+    Firebase.setInt(firebaseData, path + "/maxTemp", 60);
+  }
+  if (Firebase.get(firebaseData, path + "/minTemp")) {
+    Serial.println("minTemp not found");
+    Firebase.setInt(firebaseData, path + "/minTemp", -10);
+  }
+  if (Firebase.get(firebaseData, path + "/maxSoilMoisture")) {
+    Serial.println("maxMoisture not found");
+    Firebase.setInt(firebaseData, path + "/maxSoilMoisture", 100);
+  }
+  if (Firebase.get(firebaseData, path + "/minSoilMoisture")) {
+    Serial.println("minSoilMoisture not found");
+    Firebase.setInt(firebaseData, path + "/minSoilMoisture", 0);
+  }
+  if (Firebase.get(firebaseData, path + "/photoUrl")) {
+    Serial.println("photoUrl not found");
+    Firebase.setString(firebaseData, path + "/photoUrl", "plant_default.png");
+  }
+  if (Firebase.get(firebaseData, path + "/plantID")) {
+    Serial.println("plantID not found");
+    Firebase.setString(firebaseData, path + "/plantID", plantID);
+  }
+  if (Firebase.get(firebaseData, path + "/plantName")) {
+    Serial.println("plantName not found");
+    Firebase.setString(firebaseData, path + "/plantName", "Plant");
+  }
+  if (Firebase.get(firebaseData, path + "/plantType")) {
+    Serial.println("plantType not found");
+    Firebase.setString(firebaseData, path + "/plantType", "Plant");
+  }
+
+}
+
 void sendToFirebase() {
-  String path = "Users/" + userName + "/Plants/" + plantID;            // Name of "table" containing data. Temporary for testing.
+  String path = "Users/" + userName + "/Plants/" + plantID;
 
   // Send data to Firebase under the specified path
   if (Firebase.setInt(firebaseData, path + "/soilMoisture", soilMoisturePercentage)) {
@@ -157,13 +211,13 @@ void sendToFirebase() {
   if (Firebase.setFloat(firebaseData, path + "/uvLight", uvValue)) {
     Serial.println(firebaseData.dataPath() + " = " + uvValue);
   }
-  Serial.println("################################################"); // hashes to separate each loop for readability
+
+  Serial.println("################################################");
 }
 
 void createSnapshot() {
-  String path = "Users/" + userName + "/Plants/" + plantID + "/history";            // Name of "table" containing data. Temporary for testing.
+  String path = "Users/" + userName + "/Plants/" + plantID + "/history";
 
-  // Push data in json string using pushJSON to a history path (child of plant path)
   String jsonStr = 
     "{\"soilMoisture\":" + String(soilMoisturePercentage) 
     + ",\"irLight\":" + String(irValue)
@@ -178,5 +232,5 @@ void createSnapshot() {
     Serial.println("Error: " + firebaseData.errorReason());
   }
   Serial.println("Snapshot added to database.");
-  Serial.println("################################################"); // hashes to separate each loop for readability
+  Serial.println("################################################");
 }
